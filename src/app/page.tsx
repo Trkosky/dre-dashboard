@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import type { User } from "@supabase/supabase-js";
 import type { AnaliseIA, Empresa } from "@/lib/types";
 
 import { AuthForm } from "@/components/AuthForm";
@@ -14,19 +12,19 @@ import { ExportPDF } from "@/components/ExportPDF";
 import { Truck, LogOut } from "lucide-react";
 
 export default function Home() {
-  const [user, setUser] = useState<User | null | undefined>(undefined);
+  const [auth, setAuth] = useState<boolean | null>(null);
   const [analise, setAnalise] = useState<AnaliseIA | null>(null);
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
   const [erro, setErro] = useState("");
 
-  const supabase = createClient();
-
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      setUser(session?.user ?? null);
-    });
-    return () => subscription.unsubscribe();
+    fetch("/api/auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "check" }),
+    })
+      .then((r) => r.json())
+      .then((d) => setAuth(d.authenticated === true));
   }, []);
 
   async function logout() {
@@ -35,16 +33,13 @@ export default function Home() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "logout" }),
     });
-    setUser(null);
+    setAuth(false);
     setAnalise(null);
     setEmpresa(null);
   }
 
-  // Carregando sessão
-  if (user === undefined) return null;
-
-  // Não autenticado
-  if (!user) return <AuthForm onAuth={() => supabase.auth.getUser().then(({ data }) => setUser(data.user))} />;
+  if (auth === null) return null;
+  if (!auth) return <AuthForm onAuth={() => setAuth(true)} />;
 
   return (
     <div className="min-h-screen bg-gray-50">

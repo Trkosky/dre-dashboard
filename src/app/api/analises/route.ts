@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
+
+const FIXED_USER_ID = "00000000-0000-0000-0000-000000000001";
+
+async function isAuth() {
+  const jar = await cookies();
+  return jar.get("dre_session")?.value === "authenticated";
+}
 
 export async function GET(req: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  if (!await isAuth()) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
+  const supabase = await createClient();
   const empresaId = req.nextUrl.searchParams.get("empresa_id");
   let query = supabase
     .from("analises")
@@ -21,14 +28,13 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  if (!await isAuth()) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
+  const supabase = await createClient();
   const body = await req.json();
   const { data, error } = await supabase
     .from("analises")
-    .insert({ ...body, user_id: user.id })
+    .insert({ ...body, user_id: FIXED_USER_ID })
     .select()
     .single();
 

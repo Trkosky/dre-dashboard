@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { Truck, Loader2 } from "lucide-react";
 
 interface AuthFormProps {
@@ -9,66 +8,26 @@ interface AuthFormProps {
 }
 
 export function AuthForm({ onAuth }: AuthFormProps) {
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
-  const [form, setForm] = useState({ nome: "", email: "", password: "" });
-
-  const supabase = createClient();
+  const [erro, setErro] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setMsg(null);
+    setErro("");
 
-    if (mode === "register") {
-      const { error } = await supabase.auth.signUp({
-        email: form.email,
-        password: form.password,
-        options: { data: { nome: form.nome } },
-      });
-
-      if (error) {
-        setMsg({ text: error.message, ok: false });
-        setLoading(false);
-        return;
-      }
-
-      // Tenta logar direto — funciona se confirmação de e-mail estiver desabilitada
-      const { error: loginError } = await supabase.auth.signInWithPassword({
-        email: form.email,
-        password: form.password,
-      });
-
-      if (!loginError) {
-        onAuth();
-        return;
-      }
-
-      setMsg({
-        text: "Conta criada! Verifique seu e-mail e clique no link de confirmação para entrar.",
-        ok: true,
-      });
-      setLoading(false);
-      return;
-    }
-
-    // Login
-    const { error } = await supabase.auth.signInWithPassword({
-      email: form.email,
-      password: form.password,
+    const res = await fetch("/api/auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
     });
 
+    const data = await res.json();
     setLoading(false);
 
-    if (error) {
-      const msg =
-        error.message.includes("Invalid login")
-          ? "E-mail ou senha incorretos."
-          : error.message.includes("Email not confirmed")
-          ? "Confirme seu e-mail antes de entrar. Verifique sua caixa de entrada."
-          : error.message;
-      setMsg({ text: msg, ok: false });
+    if (!res.ok) {
+      setErro(data.error || "Senha incorreta");
       return;
     }
 
@@ -84,69 +43,28 @@ export function AuthForm({ onAuth }: AuthFormProps) {
           </div>
           <div>
             <h1 className="text-lg font-bold text-gray-900">DRE Dashboard</h1>
-            <p className="text-xs text-gray-400">Transportes Rodoviários</p>
+            <p className="text-xs text-gray-400">Transportes Rodoviários de Cargas</p>
           </div>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <div className="flex rounded-xl bg-gray-100 p-1 mb-6">
-            {(["login", "register"] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => { setMode(m); setMsg(null); }}
-                className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-all ${
-                  mode === m ? "bg-white shadow-sm text-gray-900" : "text-gray-500"
-                }`}
-              >
-                {m === "login" ? "Entrar" : "Criar conta"}
-              </button>
-            ))}
-          </div>
-
+          <h2 className="text-sm font-semibold text-gray-700 mb-4">Acesso restrito</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === "register" && (
-              <div>
-                <label className="text-xs font-medium text-gray-600">Nome</label>
-                <input
-                  type="text"
-                  required
-                  value={form.nome}
-                  onChange={(e) => setForm({ ...form, nome: e.target.value })}
-                  className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Seu nome"
-                />
-              </div>
-            )}
             <div>
-              <label className="text-xs font-medium text-gray-600">E-mail</label>
-              <input
-                type="email"
-                required
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="seu@email.com"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-gray-600">Senha</label>
+              <label className="text-xs font-medium text-gray-600">Senha de acesso</label>
               <input
                 type="password"
                 required
-                minLength={6}
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                autoFocus
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Mínimo 6 caracteres"
+                placeholder="Digite a senha"
               />
             </div>
 
-            {msg && (
-              <p className={`text-xs px-3 py-2 rounded-lg ${
-                msg.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
-              }`}>
-                {msg.text}
-              </p>
+            {erro && (
+              <p className="text-xs bg-red-50 text-red-600 px-3 py-2 rounded-lg">{erro}</p>
             )}
 
             <button
@@ -155,16 +73,10 @@ export function AuthForm({ onAuth }: AuthFormProps) {
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-xl text-sm transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              {mode === "login" ? "Entrar" : "Criar conta"}
+              Entrar
             </button>
           </form>
         </div>
-
-        {mode === "register" && (
-          <p className="text-center text-xs text-gray-400 mt-4">
-            Após criar a conta, verifique seu e-mail para confirmar o acesso.
-          </p>
-        )}
       </div>
     </div>
   );

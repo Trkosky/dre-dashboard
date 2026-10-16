@@ -1,30 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
+
+const SESSION_COOKIE = "dre_session";
+const SESSION_VALUE = "authenticated";
 
 export async function POST(req: NextRequest) {
-  const { action, email, password, nome } = await req.json();
-  const supabase = await createClient();
-
-  if (action === "login") {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return NextResponse.json({ error: error.message }, { status: 401 });
-    return NextResponse.json({ user: data.user });
-  }
-
-  if (action === "register") {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { nome } },
-    });
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-    return NextResponse.json({ user: data.user });
-  }
+  const { password, action } = await req.json();
 
   if (action === "logout") {
-    await supabase.auth.signOut();
+    const jar = await cookies();
+    jar.delete(SESSION_COOKIE);
     return NextResponse.json({ ok: true });
   }
 
-  return NextResponse.json({ error: "Ação inválida" }, { status: 400 });
+  if (action === "check") {
+    const jar = await cookies();
+    const valid = jar.get(SESSION_COOKIE)?.value === SESSION_VALUE;
+    return NextResponse.json({ authenticated: valid });
+  }
+
+  const correctPassword = process.env.APP_PASSWORD;
+  if (!correctPassword) {
+    return NextResponse.json({ error: "Senha não configurada no servidor" }, { status: 500 });
+  }
+
+  if (password !== correctPassword) {
+    return NextResponse.json({ error: "Senha incorreta" }, { status: 401 });
+  }
+
+  const jar = await cookies();
+  jar.set(SESSION_COOKIE, SESSION_VALUE, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 24 * 30, // 30 dias
+    path: "/",
+  });
+
+  return NextResponse.json({ ok: true });
 }
