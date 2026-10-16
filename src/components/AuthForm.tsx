@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { Truck, Loader2 } from "lucide-react";
 
 interface AuthFormProps {
@@ -10,30 +11,64 @@ interface AuthFormProps {
 export function AuthForm({ onAuth }: AuthFormProps) {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [loading, setLoading] = useState(false);
-  const [erro, setErro] = useState("");
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [form, setForm] = useState({ nome: "", email: "", password: "" });
+
+  const supabase = createClient();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setErro("");
+    setMsg(null);
 
-    const res = await fetch("/api/auth", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: mode, ...form }),
-    });
+    if (mode === "register") {
+      const { error } = await supabase.auth.signUp({
+        email: form.email,
+        password: form.password,
+        options: { data: { nome: form.nome } },
+      });
 
-    const data = await res.json();
-    setLoading(false);
+      if (error) {
+        setMsg({ text: error.message, ok: false });
+        setLoading(false);
+        return;
+      }
 
-    if (!res.ok) {
-      setErro(data.error || "Erro desconhecido");
+      // Tenta logar direto — funciona se confirmação de e-mail estiver desabilitada
+      const { error: loginError } = await supabase.auth.signInWithPassword({
+        email: form.email,
+        password: form.password,
+      });
+
+      if (!loginError) {
+        onAuth();
+        return;
+      }
+
+      setMsg({
+        text: "Conta criada! Verifique seu e-mail e clique no link de confirmação para entrar.",
+        ok: true,
+      });
+      setLoading(false);
       return;
     }
 
-    if (mode === "register") {
-      setErro("Conta criada! Verifique seu e-mail para confirmar.");
+    // Login
+    const { error } = await supabase.auth.signInWithPassword({
+      email: form.email,
+      password: form.password,
+    });
+
+    setLoading(false);
+
+    if (error) {
+      const msg =
+        error.message.includes("Invalid login")
+          ? "E-mail ou senha incorretos."
+          : error.message.includes("Email not confirmed")
+          ? "Confirme seu e-mail antes de entrar. Verifique sua caixa de entrada."
+          : error.message;
+      setMsg({ text: msg, ok: false });
       return;
     }
 
@@ -58,7 +93,7 @@ export function AuthForm({ onAuth }: AuthFormProps) {
             {(["login", "register"] as const).map((m) => (
               <button
                 key={m}
-                onClick={() => { setMode(m); setErro(""); }}
+                onClick={() => { setMode(m); setMsg(null); }}
                 className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-all ${
                   mode === m ? "bg-white shadow-sm text-gray-900" : "text-gray-500"
                 }`}
@@ -106,11 +141,11 @@ export function AuthForm({ onAuth }: AuthFormProps) {
               />
             </div>
 
-            {erro && (
+            {msg && (
               <p className={`text-xs px-3 py-2 rounded-lg ${
-                erro.includes("criada") ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
+                msg.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
               }`}>
-                {erro}
+                {msg.text}
               </p>
             )}
 
@@ -124,6 +159,12 @@ export function AuthForm({ onAuth }: AuthFormProps) {
             </button>
           </form>
         </div>
+
+        {mode === "register" && (
+          <p className="text-center text-xs text-gray-400 mt-4">
+            Após criar a conta, verifique seu e-mail para confirmar o acesso.
+          </p>
+        )}
       </div>
     </div>
   );
