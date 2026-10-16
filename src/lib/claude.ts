@@ -1,10 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { AnaliseIA } from "./types";
 import type { ParsedContent } from "./parsers";
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!);
 
 const PROMPT_SISTEMA = `Você é um especialista em análise financeira com foco no setor de transportes rodoviários de cargas no Brasil.
 Analise o DRE fornecido e retorne um JSON estruturado com a análise completa da saúde financeira da empresa.
@@ -57,72 +55,33 @@ Para benchmarks do setor de transportes rodoviários de cargas no Brasil:
 Inclua no mínimo estes indicadores: Margem Bruta, Margem EBITDA, Margem Líquida, Representatividade do CPV, Resultado Financeiro/Receita.`;
 
 export async function analisarDRE(content: ParsedContent): Promise<AnaliseIA> {
-  let messageContent: Anthropic.MessageParam["content"];
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+  let result;
 
   if (content.base64 && content.mediaType) {
-    if (content.mediaType === "application/pdf") {
-      messageContent = [
-        {
-          type: "document",
-          source: {
-            type: "base64",
-            media_type: "application/pdf",
-            data: content.base64,
-          },
-        } as unknown as Anthropic.TextBlockParam,
-        {
-          type: "text",
-          text: "Analise este DRE e retorne o JSON conforme instruído.",
+    result = await model.generateContent([
+      PROMPT_SISTEMA + "\n\nAnalise este DRE e retorne o JSON conforme instruído.",
+      {
+        inlineData: {
+          mimeType: content.mediaType,
+          data: content.base64,
         },
-      ];
-    } else {
-      const validImageTypes = [
-        "image/jpeg",
-        "image/png",
-        "image/gif",
-        "image/webp",
-      ] as const;
-      type ValidImageType = (typeof validImageTypes)[number];
-      const imgType = validImageTypes.includes(
-        content.mediaType as ValidImageType
-      )
-        ? (content.mediaType as ValidImageType)
-        : "image/jpeg";
-
-      messageContent = [
-        {
-          type: "image",
-          source: {
-            type: "base64",
-            media_type: imgType,
-            data: content.base64,
-          },
-        },
-        {
-          type: "text",
-          text: "Analise este DRE e retorne o JSON conforme instruído.",
-        },
-      ];
-    }
+      },
+    ]);
   } else {
-    messageContent = `Analise o seguinte DRE e retorne o JSON conforme instruído:\n\n${content.text}`;
+    result = await model.generateContent(
+      `${PROMPT_SISTEMA}\n\nAnalise o seguinte DRE e retorne o JSON conforme instruído:\n\n${content.text}`
+    );
   }
 
-  const response = await client.messages.create({
-    model: "claude-opus-4-7",
-    max_tokens: 4096,
-    system: PROMPT_SISTEMA,
-    messages: [{ role: "user", content: messageContent }],
-  });
-
-  const text =
-    response.content[0].type === "text" ? response.content[0].text : "";
+  const text = result.response.text();
 
   try {
     return JSON.parse(text) as AnaliseIA;
   } catch {
     const match = text.match(/\{[\s\S]*\}/);
     if (match) return JSON.parse(match[0]) as AnaliseIA;
-    throw new Error("Claude não retornou JSON válido");
+    throw new Error("Gemini não retornou JSON válido");
   }
 }
