@@ -19,12 +19,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ authenticated: valid });
   }
 
-  const correctPassword = process.env.APP_PASSWORD;
+  const correctPassword = (process.env.APP_PASSWORD ?? "")
+    .split("")
+    .filter((c) => c.charCodeAt(0) >= 32 && c.charCodeAt(0) <= 126)
+    .join("")
+    .trim();
+
   if (!correctPassword) {
     return NextResponse.json({ error: "Senha não configurada no servidor" }, { status: 500 });
   }
 
-  if (password !== correctPassword) {
+  if (password.trim() !== correctPassword) {
     return NextResponse.json({ error: "Senha incorreta" }, { status: 401 });
   }
 
