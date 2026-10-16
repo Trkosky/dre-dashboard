@@ -61,7 +61,7 @@ Para benchmarks do setor de transportes rodoviários de cargas no Brasil:
 Inclua no mínimo estes indicadores: Margem Bruta, Margem EBITDA, Margem Líquida, Representatividade do CPV, Resultado Financeiro/Receita.`;
 
 export async function analisarDRE(content: ParsedContent): Promise<AnaliseIA> {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   let result;
 
