@@ -2,7 +2,13 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { AnaliseIA } from "./types";
 import type { ParsedContent } from "./parsers";
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!);
+// Keep only printable ASCII chars — removes BOM (U+FEFF) and other invisibles
+const cleanKey = (process.env.GOOGLE_API_KEY ?? "")
+  .split("")
+  .filter((c) => c.charCodeAt(0) >= 32 && c.charCodeAt(0) <= 126)
+  .join("")
+  .trim();
+const genAI = new GoogleGenerativeAI(cleanKey);
 
 const PROMPT_SISTEMA = `Você é um especialista em análise financeira com foco no setor de transportes rodoviários de cargas no Brasil.
 Analise o DRE fornecido e retorne um JSON estruturado com a análise completa da saúde financeira da empresa.
