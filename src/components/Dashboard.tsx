@@ -6,7 +6,7 @@ import { DRECards } from "./DRECards";
 import { RevenueChart } from "./RevenueChart";
 import { MarginChart } from "./MarginChart";
 import { AIInsights } from "./AIInsights";
-import { Building2, RefreshCw } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 
 interface DashboardProps {
   analise: AnaliseIA;
@@ -14,43 +14,54 @@ interface DashboardProps {
 }
 
 export function Dashboard({ analise, onReset }: DashboardProps) {
-  const { dreData } = analise;
-
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-            <Building2 className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">
-              {dreData.empresa || "Empresa"}
-            </h1>
-            {dreData.periodo && (
-              <p className="text-sm text-gray-400">{dreData.periodo}</p>
-            )}
-          </div>
-        </div>
-        <button
-          onClick={onReset}
-          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors px-3 py-2 rounded-lg hover:bg-gray-100"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Novo DRE
-        </button>
-      </div>
-
+      {/* Score principal */}
       <HealthScore analise={analise} />
 
-      <DRECards dre={dreData} />
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <RevenueChart dre={dreData} />
-        <MarginChart dre={dreData} />
+      {/* Separador */}
+      <div className="flex items-center gap-4">
+        <div className="flex-1 h-px bg-gray-200" />
+        <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Demonstrativo Financeiro</span>
+        <div className="flex-1 h-px bg-gray-200" />
       </div>
 
+      {/* Cards DRE */}
+      <DRECards dre={analise.dreData} />
+
+      {/* Separador */}
+      <div className="flex items-center gap-4">
+        <div className="flex-1 h-px bg-gray-200" />
+        <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Gráficos</span>
+        <div className="flex-1 h-px bg-gray-200" />
+      </div>
+
+      {/* Gráficos */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <RevenueChart dre={analise.dreData} />
+        <MarginChart dre={analise.dreData} />
+      </div>
+
+      {/* Separador */}
+      <div className="flex items-center gap-4">
+        <div className="flex-1 h-px bg-gray-200" />
+        <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Análise da IA</span>
+        <div className="flex-1 h-px bg-gray-200" />
+      </div>
+
+      {/* Insights */}
       <AIInsights analise={analise} />
+
+      {/* Rodapé */}
+      <div className="flex justify-center pt-4">
+        <button
+          onClick={onReset}
+          className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-600 transition-colors px-4 py-2 rounded-xl hover:bg-gray-100"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          Analisar outro DRE
+        </button>
+      </div>
     </div>
   );
 }
